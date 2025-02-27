@@ -1,47 +1,46 @@
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import NavBar from "../Components/NavBar";
-import { useNavigate } from "react-router-dom";
 
-function Candidate() {
-    const [candidates, setCandidates] = useState([]);
+function CandidateInfo() {
+    const { id } = useParams();
+    const [candidate, setCandidate] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [hasVoted, setHasVoted] = useState(false);
-    const [studentInfo, setStudentInfo] = useState(null); 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [registrationNumber, setRegistrationNumber] = useState("");
     const [password, setPassword] = useState("");
-    const [isLoginForm, setIsLoginForm] = useState(true); 
-    const navigate = useNavigate();
+    const [isLoginForm, setIsLoginForm] = useState(true); // To toggle between Login and Register forms
 
     useEffect(() => {
         const token = localStorage.getItem("token");
         if (token) {
             setIsLoggedIn(true);
+            // Optionally, verify the token with an API request here to fetch user data
             fetch("http://localhost:5000/student/me", {
                 headers: {
-                    "Authorization": `Bearer ${token}`
-                }
+                    "Authorization": `Bearer ${token}`,
+                },
             })
-                .then(res => res.json())
-                .then(data => {
-                    setStudentInfo(data);
-                    const votedCandidates = data.votes.map(vote => vote.candidateId);
-                    setHasVoted(votedCandidates.length > 0);
+                .then((res) => res.json())
+                .then((data) => {
+                    setHasVoted(data.votes.some((vote) => vote.candidateId === id));
                 })
-                .catch(err => console.error("Error fetching student data:", err));
+                .catch((err) => console.error("Error fetching student data:", err));
         }
-    }, []);
+    }, [id]);
 
     useEffect(() => {
-        fetch("http://localhost:5000/candidates")
+        fetch(`http://localhost:5000/candidates/${id}`)
             .then((res) => res.json())
-            .then((data) => setCandidates(data))
-            .catch((err) => console.error("Error fetching candidates:", err));
-    }, []);
+            .then((data) => setCandidate(data))
+            .catch((err) => console.error("Error fetching candidate:", err));
+    }, [id]);
 
     const handleVote = async (id, type) => {
         if (!isLoggedIn) {
-            setShowAuthModal(true); 
+            setShowAuthModal(true); // Show authentication modal if not logged in
             return;
         }
 
@@ -59,16 +58,21 @@ function Candidate() {
 
             if (response.ok) {
                 const updatedCandidate = await response.json();
-                setCandidates((prev) =>
-                    prev
-                        .map((c) => (c._id === id ? { ...c, upvotes: updatedCandidate.upvotes, downvotes: updatedCandidate.downvotes } : c))
-                        .sort((a, b) => b.upvotes - a.upvotes)
+                setCandidate((prev) =>
+                    prev._id === updatedCandidate._id
+                        ? { ...prev, upvotes: updatedCandidate.upvotes, downvotes: updatedCandidate.downvotes }
+                        : prev
                 );
-                setHasVoted(true); 
+                setHasVoted(true); // Update voting status
             }
         } catch (error) {
             console.error("Error updating votes:", error);
         }
+    };
+
+    const getYouTubeID = (url) => {
+        const match = url?.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*\/)([^#&?]*))/);
+        return match ? match[1] : null;
     };
 
     const handleAuthSubmit = async (e) => {
@@ -76,7 +80,7 @@ function Candidate() {
 
         const url = isLoginForm
             ? "http://localhost:5000/students/login"
-            : "http://localhost:5000/students/register"; 
+            : "http://localhost:5000/students/register"; // Toggle between login and register
         const method = isLoginForm ? "POST" : "POST";
 
         try {
@@ -88,9 +92,9 @@ function Candidate() {
 
             if (response.ok) {
                 const data = await response.json();
-                localStorage.setItem("token", data.token); 
+                localStorage.setItem("token", data.token); // Save JWT in localStorage
                 setIsLoggedIn(true);
-                setShowAuthModal(false);
+                setShowAuthModal(false); // Close modal after successful login/registration
                 alert(isLoginForm ? "Login successful!" : "Registration successful!");
             } else {
                 const error = await response.json();
@@ -101,41 +105,50 @@ function Candidate() {
         }
     };
 
+    if (!candidate) return <div className="text-center mt-20">Loading...</div>;
+
     return (
         <>
             <NavBar />
-            <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 px-6">
-                {candidates.map((candidate) => (
-                    <div key={candidate._id} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
-                        <div onClick={() => navigate(`/candidate/${candidate._id}`)} className="cursor-pointer">
-                            <img 
-                                alt={candidate.name} 
-                                src={`http://localhost:5000${candidate.picture}`} 
-                                className="w-full h-40 object-cover rounded-lg mb-4" 
-                            />
-                            <h2 className="text-xl font-semibold">{candidate.name}</h2>
-                            <p className="text-gray-500">{candidate.email}</p>
-                        </div>
+            <div className="mt-20 mx-auto max-w-2xl p-6 bg-white shadow-lg rounded-lg">
+                <img src={`http://localhost:5000${candidate.picture}`} alt={candidate.name} className="w-full h-60 object-cover rounded-lg mb-4" />
+                <h2 className="text-2xl font-bold">{candidate.name}</h2>
+                <p className="text-gray-600 m-4">{candidate.email}</p>
+                <p>{candidate.manifesto}</p>
 
-                        <div className="flex items-center mt-4 space-x-4">
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleVote(candidate._id, "upvote"); }} 
-                                className={`px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 ${hasVoted ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={hasVoted}
-                            >
-                                ⬆ {candidate.upvotes}
-                            </button>
-                            <button 
-                                onClick={(e) => { e.stopPropagation(); handleVote(candidate._id, "downvote"); }} 
-                                className={`px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 ${hasVoted ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={hasVoted}
-                            >
-                                ⬇ {candidate.downvotes}
-                            </button>
-                        </div>
+                {candidate.videoUrl && (
+                    <div className="mt-4">
+                        <iframe
+                            width="100%"
+                            height="250"
+                            src={`https://www.youtube.com/embed/${getYouTubeID(candidate.videoUrl)}`}
+                            title="Candidate Manifesto"
+                            frameBorder="0"
+                            allowFullScreen
+                            className="rounded-lg"
+                        />
                     </div>
-                ))}
+                )}
+
+                <div className="flex items-center mt-4 space-x-4">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleVote(candidate._id, "upvote"); }}
+                        className={`px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 ${hasVoted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={hasVoted}
+                    >
+                        ⬆ {candidate.upvotes}
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleVote(candidate._id, "downvote"); }}
+                        className={`px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 ${hasVoted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={hasVoted}
+                    >
+                        ⬇ {candidate.downvotes}
+                    </button>
+                </div>
             </div>
+
+            {/* Authentication Modal */}
             {showAuthModal && (
                 <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white p-8 rounded-lg shadow-lg w-96">
@@ -182,4 +195,4 @@ function Candidate() {
     );
 }
 
-export default Candidate;
+export default CandidateInfo;

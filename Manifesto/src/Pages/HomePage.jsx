@@ -21,8 +21,28 @@ function HomePage() {
         setFormData({ ...formData, picture: e.target.files[0] });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        const formDataToSend = new FormData();
+        formDataToSend.append("name", formData.fullName);
+        formDataToSend.append("email", formData.email);
+        formDataToSend.append("videoUrl", formData.youtubeLink);
+        formDataToSend.append("manifesto", formData.manifesto);
+        formDataToSend.append("picture", formData.picture);
+
+        try {
+            const response = await fetch("http://localhost:5000/candidates", {
+                method: "POST",
+                body: formDataToSend
+            })
+            if (!response.ok) throw new Error("Failed to post data");
+
+            const responseData = await response.json();
+            console.log("Success:", responseData);
+
+        } catch (error) {
+            console.log("Data not posted", error)
+        }
         console.log("Submitted Data:", formData);
         setIsOpen(false);
     };
@@ -44,7 +64,7 @@ function HomePage() {
                             Reach your voters with your manifestos
                         </p>
                         <div className="flex justify-center mt-6">
-                            <button 
+                            <button
                                 onClick={() => setIsOpen(true)}
                                 className="rounded px-8 py-3 text-white bg-blue-600 hover:bg-blue-700 transition shadow-lg"
                             >
@@ -62,49 +82,49 @@ function HomePage() {
                         <p className="text-gray-600 mt-2">Fill in your details below:</p>
 
                         <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 name="fullName"
-                                placeholder="Full Name" 
+                                placeholder="Full Name"
                                 value={formData.fullName}
                                 onChange={handleChange}
                                 className="w-full p-3 bg-gray-100 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                                 required
                             />
-                            <input 
-                                type="email" 
+                            <input
+                                type="email"
                                 name="email"
-                                placeholder="Email" 
+                                placeholder="Email"
                                 value={formData.email}
                                 onChange={handleChange}
                                 className="w-full p-3 bg-gray-100 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                                 required
                             />
-                            <textarea 
+                            <textarea
                                 name="manifesto"
-                                placeholder="Your Manifesto" 
+                                placeholder="Your Manifesto"
                                 value={formData.manifesto}
                                 onChange={handleChange}
                                 className="w-full p-3 bg-gray-100 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                                 rows="3"
                                 required
                             ></textarea>
-                            
+
                             <label className="block text-gray-700 font-medium">
                                 Upload Your Picture:
-                                <input 
-                                    type="file" 
-                                    accept="image/*" 
+                                <input
+                                    type="file"
+                                    accept="image/*"
                                     onChange={handleFileChange}
                                     className="mt-1 w-full p-2 bg-gray-100 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                                     required
                                 />
                             </label>
 
-                            <input 
-                                type="url" 
+                            <input
+                                type="url"
                                 name="youtubeLink"
-                                placeholder="Manifesto Video (YouTube Link)" 
+                                placeholder="Manifesto Video (YouTube Link)"
                                 value={formData.youtubeLink}
                                 onChange={handleChange}
                                 className="w-full p-3 bg-gray-100 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
@@ -112,15 +132,15 @@ function HomePage() {
                             />
 
                             <div className="flex justify-between mt-4">
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
                                     onClick={() => setIsOpen(false)}
                                 >
                                     Cancel
                                 </button>
-                                <button 
-                                    type="submit" 
+                                <button
+                                    type="submit"
                                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                                 >
                                     Submit
